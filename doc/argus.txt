@@ -277,12 +277,12 @@ Argus includes several icon presets. All require a Nerd Font installed.
 
 Available presets:
 
-codicons (default) ~
-    VS Code style icons - clean and widely recognized.
+default ~
+    Clean Nerd Font icons (default).
 >
-        package = ""    function = ""   method = ""
-        struct = ""     interface = ""  type = ""
-        const = ""      var = ""        field = ""
+        package = "󰏗"   function = "󰊕"  method = "󰆧"
+        struct = "󰙅"    interface = "󰜰" type = "󰊄"
+        const = "󰏿"     var = "󰀫"       field = "󰜢"
 <
 
 material ~
@@ -293,8 +293,8 @@ material ~
         const = "󰏿"     var = "󰀫"       field = "󰆨"
 <
 
-outline ~
-    Similar to symbols-outline.nvim style.
+devicons ~
+    Devicons style.
 >
         package = ""    function = ""   method = ""
         struct = ""     interface = ""  type = ""

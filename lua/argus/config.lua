@@ -13,17 +13,17 @@ local M = {}
 
 -- Icon presets (all require Nerd Fonts)
 M.icon_presets = {
-  -- VS Code / Codicons style - clean and recognizable
-  codicons = {
-    package = "",
-    ["function"] = "",
-    method = "",
-    struct = "",
-    interface = "",
-    type = "",
-    const = "",
-    var = "",
-    field = "",
+  -- Default style - clear and recognizable
+  default = {
+    package = "󰏗",
+    ["function"] = "󰊕",
+    method = "󰆧",
+    struct = "󰙅",
+    interface = "󰜰",
+    type = "󰊄",
+    const = "󰏿",
+    var = "󰀫",
+    field = "󰜢",
     collapsed = "",
     expanded = "",
   },
@@ -41,7 +41,7 @@ M.icon_presets = {
     collapsed = "󰁕",
     expanded = "󰁆",
   },
-  -- Minimal/Simple style
+  -- Minimal/Simple style (no special font needed)
   minimal = {
     package = "P",
     ["function"] = "ƒ",
@@ -55,8 +55,8 @@ M.icon_presets = {
     collapsed = "▸",
     expanded = "▾",
   },
-  -- Outline style (similar to symbols-outline.nvim)
-  outline = {
+  -- Devicons style
+  devicons = {
     package = "",
     ["function"] = "",
     method = "",
@@ -78,8 +78,8 @@ M.defaults = {
   width = 40,
   auto_close = true,
 
-  -- Display (using codicons preset by default)
-  icons = M.icon_presets.codicons,
+  -- Display
+  icons = M.icon_presets.default,
   show_line_numbers = true,
 
   -- Behavior
@@ -131,10 +131,10 @@ function M.get_icon(kind)
 end
 
 ---Get an icon preset by name
----@param name string Preset name: "codicons", "material", "minimal", "outline"
+---@param name string Preset name: "default", "material", "minimal", "devicons"
 ---@return table
 function M.get_preset(name)
-  return M.icon_presets[name] or M.icon_presets.codicons
+  return M.icon_presets[name] or M.icon_presets.default
 end
 
 return M
