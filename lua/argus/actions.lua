@@ -316,27 +316,27 @@ function M.show_help()
   local km = config.get().keymaps
 
   local lines = {
-    "Argus Outline - Keybindings",
-    "───────────────────────────",
+    " Argus Outline - Keybindings ",
+    "─────────────────────────────",
     "",
-    string.format("  %s  Close outline", km.close),
-    string.format("  %s  Jump to symbol", km.jump),
-    string.format("  %s  Move symbol up", km.move_up),
-    string.format("  %s  Move symbol down", km.move_down),
-    string.format("  %s  Toggle fold", km.toggle_fold),
-    string.format("  %s  Expand all", km.expand_all),
-    string.format("  %s  Collapse all", km.collapse_all),
-    string.format("  %s  Filter symbols", km.filter),
-    string.format("  %s  Clear filter", km.clear_filter),
-    string.format("  %s  Refresh", km.refresh),
-    string.format("  %s  Toggle view (flat/hierarchy)", km.toggle_view),
-    string.format("  %s  Show this help", km.help),
+    string.format("  %-6s Close outline", km.close),
+    string.format("  %-6s Jump to symbol", km.jump),
+    string.format("  %-6s Move symbol up", km.move_up),
+    string.format("  %-6s Move symbol down", km.move_down),
+    string.format("  %-6s Toggle fold", km.toggle_fold),
+    string.format("  %-6s Expand all", km.expand_all),
+    string.format("  %-6s Collapse all", km.collapse_all),
+    string.format("  %-6s Filter symbols", km.filter),
+    string.format("  %-6s Clear filter", km.clear_filter),
+    string.format("  %-6s Refresh", km.refresh),
+    string.format("  %-6s Toggle view (flat/hierarchy)", km.toggle_view),
+    string.format("  %-6s Show this help", km.help),
     "",
-    "Press any key to close",
+    " Press q or <Esc> to close ",
   }
 
   -- Create floating window
-  local width = 40
+  local width = 42
   local height = #lines
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -351,36 +351,24 @@ function M.show_help()
     col = math.floor((vim.o.columns - width) / 2),
     style = "minimal",
     border = "rounded",
-    title = " Help ",
-    title_pos = "center",
   }
 
   local win = vim.api.nvim_open_win(buf, true, win_opts)
 
-  -- Close on any key press
-  vim.keymap.set("n", "<Esc>", function()
-    vim.api.nvim_win_close(win, true)
-  end, { buffer = buf, nowait = true })
+  -- Close on q or Escape
+  local function close_help()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
+  end
+
+  vim.keymap.set("n", "q", close_help, { buffer = buf, nowait = true, silent = true })
+  vim.keymap.set("n", "<Esc>", close_help, { buffer = buf, nowait = true, silent = true })
 
   vim.api.nvim_create_autocmd("BufLeave", {
     buffer = buf,
     once = true,
-    callback = function()
-      if vim.api.nvim_win_is_valid(win) then
-        vim.api.nvim_win_close(win, true)
-      end
-    end,
-  })
-
-  -- Close on any key
-  vim.api.nvim_create_autocmd("CursorMoved", {
-    buffer = buf,
-    once = true,
-    callback = function()
-      if vim.api.nvim_win_is_valid(win) then
-        vim.api.nvim_win_close(win, true)
-      end
-    end,
+    callback = close_help,
   })
 end
 
