@@ -1,0 +1,429 @@
+*argus.txt*  Go Code Outline Plugin for Neovim
+
+Author:   Abhipranay Chauhan
+License:  MIT
+Version:  1.0.0
+
+==============================================================================
+CONTENTS                                                      *argus-contents*
+
+    1. Introduction .......................... |argus-introduction|
+    2. Requirements .......................... |argus-requirements|
+    3. Installation .......................... |argus-installation|
+    4. Configuration ......................... |argus-configuration|
+    5. Commands .............................. |argus-commands|
+    6. Keybindings ........................... |argus-keybindings|
+    7. Views ................................. |argus-views|
+    8. Icon Presets .......................... |argus-icon-presets|
+    9. Symbol Types .......................... |argus-symbols|
+   10. Highlights ............................ |argus-highlights|
+   11. API ................................... |argus-api|
+
+==============================================================================
+1. INTRODUCTION                                           *argus-introduction*
+
+Argus is a Neovim plugin that displays a hierarchical outline of Go source
+code symbols. It allows you to navigate your code structure and reorder
+symbols by moving them up/down directly from the outline window.
+
+Features:
+- Hierarchical symbol outline for Go files
+- Two view modes: flat (file order) and hierarchy (grouped by type)
+- Move symbols up/down to reorganize code
+- Methods grouped under their receiver types (in hierarchy view)
+- Struct fields and interface methods as children
+- Doc comments move with their associated symbols
+- Live filtering/search
+- Cursor synchronization between source and outline
+
+==============================================================================
+2. REQUIREMENTS                                           *argus-requirements*
+
+- Neovim >= 0.9.0
+- nvim-treesitter with Go parser installed
+
+To install the Go treesitter parser:
+>lua
+    :TSInstall go
+<
+
+==============================================================================
+3. INSTALLATION                                           *argus-installation*
+
+Using lazy.nvim: ~
+>lua
+    {
+      "yourusername/argus.nvim",
+      ft = "go",
+      opts = {},
+      keys = {
+        { "<leader>cs", "<cmd>ArgusToggle<cr>", desc = "Toggle Code Outline" },
+      },
+    }
+<
+
+Using packer.nvim: ~
+>lua
+    use {
+      "yourusername/argus.nvim",
+      config = function()
+        require("argus").setup()
+      end,
+      ft = "go",
+    }
+<
+
+Local plugin (development): ~
+>lua
+    {
+      dir = "~/path/to/argus.nvim",
+      ft = "go",
+      opts = {},
+    }
+<
+
+==============================================================================
+4. CONFIGURATION                                         *argus-configuration*
+
+Call the setup function with your preferred options:
+>lua
+    require("argus").setup({
+      -- Window settings
+      position = "right",      -- "left" | "right"
+      width = 40,              -- window width
+      auto_close = true,       -- close when source buffer closes
+
+      -- Display settings
+      icons = {
+        package = "󰏗",
+        ["function"] = "󰊕",
+        method = "󰆧",
+        struct = "󰙅",
+        interface = "󰜰",
+        type = "󰊄",
+        const = "󰏿",
+        var = "󰀫",
+        field = "󰜢",
+        collapsed = "",
+        expanded = "",
+      },
+      show_line_numbers = true,
+
+      -- Behavior settings
+      auto_preview = false,    -- preview symbol on cursor move
+      follow_cursor = true,    -- sync outline cursor with source
+      view_mode = "flat",      -- "flat" | "hierarchy"
+
+      -- Keymaps (in outline window)
+      keymaps = {
+        close = "q",
+        jump = "<CR>",
+        move_up = "K",
+        move_down = "J",
+        toggle_fold = "za",
+        expand_all = "zR",
+        collapse_all = "zM",
+        filter = "/",
+        clear_filter = "<Esc>",
+        refresh = "R",
+        toggle_view = "v",
+        help = "?",
+      },
+    })
+<
+
+                                                        *argus-config-position*
+position ~
+    Window position: "left" or "right"
+    Default: "right"
+
+                                                           *argus-config-width*
+width ~
+    Width of the outline window in columns.
+    Default: 40
+
+                                                      *argus-config-auto_close*
+auto_close ~
+    Automatically close the outline when the source buffer is closed.
+    Default: true
+
+                                                           *argus-config-icons*
+icons ~
+    Table of icons for each symbol type. Requires a Nerd Font.
+    You can use one of the built-in presets (see |argus-icon-presets|).
+
+                                               *argus-config-show_line_numbers*
+show_line_numbers ~
+    Show line numbers next to symbols.
+    Default: true
+
+                                                    *argus-config-auto_preview*
+auto_preview ~
+    Preview symbol location when moving cursor in outline.
+    Default: false
+
+                                                   *argus-config-follow_cursor*
+follow_cursor ~
+    Sync outline cursor position with source cursor.
+    Default: true
+
+                                                       *argus-config-view_mode*
+view_mode ~
+    Initial view mode: "flat" (file order) or "hierarchy" (grouped).
+    Default: "flat"
+
+                                                         *argus-config-keymaps*
+keymaps ~
+    Table of keybindings for the outline window.
+
+==============================================================================
+5. COMMANDS                                                   *argus-commands*
+
+                                                                  *:ArgusOpen*
+:ArgusOpen ~
+    Open the outline window for the current Go buffer.
+
+                                                                 *:ArgusClose*
+:ArgusClose ~
+    Close the outline window.
+
+                                                                *:ArgusToggle*
+:ArgusToggle ~
+    Toggle the outline window.
+
+                                                               *:ArgusRefresh*
+:ArgusRefresh ~
+    Refresh the outline to reflect changes in the source.
+
+==============================================================================
+6. KEYBINDINGS                                             *argus-keybindings*
+
+These keybindings are active in the outline window:
+
+    Key         Action ~
+    -----------------------------------------------------------------------
+    q           Close the outline window
+    <CR>        Jump to symbol in source buffer
+    K           Move symbol up in source code
+    J           Move symbol down in source code
+    za          Toggle fold (expand/collapse)
+    zR          Expand all folds
+    zM          Collapse all folds
+    /           Open filter prompt
+    <Esc>       Clear filter
+    R           Refresh outline
+    v           Toggle view mode (flat/hierarchy)
+    ?           Show help popup
+
+                                                             *argus-move-up*
+Moving Symbols Up (K) ~
+    Moves the symbol at cursor position up, swapping it with the previous
+    sibling symbol. Doc comments are moved along with the symbol.
+
+                                                           *argus-move-down*
+Moving Symbols Down (J) ~
+    Moves the symbol at cursor position down, swapping it with the next
+    sibling symbol. Doc comments are moved along with the symbol.
+
+                                                              *argus-filter*
+Filtering (/) ~
+    Opens a live filter prompt. As you type, the outline updates to show
+    only symbols matching the pattern. Press <CR> to confirm or <Esc> to
+    cancel.
+
+==============================================================================
+7. VIEWS                                                         *argus-views*
+
+Argus supports two view modes, toggleable with `v`:
+
+                                                             *argus-view-flat*
+Flat View (File Order) ~
+    Shows symbols in their actual order in the source file. This is useful
+    for understanding and reorganizing the file structure.
+
+    Example:
+>
+        󰏗 main
+        󰙅 Config
+        󰊕 NewConfig()
+        󰊕 helper()
+        󰆧 (c *Config) Validate()
+        󰆧 (c *Config) Save()
+        󰏿 MaxRetries
+<
+
+                                                        *argus-view-hierarchy*
+Hierarchy View (Grouped) ~
+    Groups methods under their receiver types. Struct fields and interface
+    methods are shown as children of their parent type.
+
+    Example:
+>
+        󰏗 main
+        󰙅 Config
+           󰜢 Host string
+           󰜢 Port int
+           󰆧 (c *Config) Validate()
+           󰆧 (c *Config) Save()
+        󰊕 NewConfig()
+        󰊕 helper()
+        󰏿 MaxRetries
+<
+
+==============================================================================
+8. ICON PRESETS                                           *argus-icon-presets*
+
+Argus includes several icon presets. All require a Nerd Font installed.
+
+Available presets:
+
+codicons (default) ~
+    VS Code style icons - clean and widely recognized.
+>
+        package = ""    function = ""   method = ""
+        struct = ""     interface = ""  type = ""
+        const = ""      var = ""        field = ""
+<
+
+material ~
+    Material Design style icons.
+>
+        package = "󰏗"   function = "󰡱"  method = "󰆧"
+        struct = "󰆼"    interface = "󰜰" type = "󰊄"
+        const = "󰏿"     var = "󰀫"       field = "󰆨"
+<
+
+outline ~
+    Similar to symbols-outline.nvim style.
+>
+        package = ""    function = ""   method = ""
+        struct = ""     interface = ""  type = ""
+        const = ""      var = ""        field = ""
+<
+
+minimal ~
+    Simple ASCII-compatible icons (no special font needed).
+>
+        package = "P"   function = "ƒ"  method = "m"
+        struct = "S"    interface = "I" type = "T"
+        const = "C"     var = "v"       field = "·"
+<
+
+Using a preset: ~
+>lua
+    require("argus").setup({
+      icons = require("argus.config").get_preset("material"),
+    })
+<
+
+Custom icons: ~
+>lua
+    require("argus").setup({
+      icons = {
+        package = "📦",
+        ["function"] = "🔧",
+        method = "⚙️",
+        struct = "🏗️",
+        interface = "🔌",
+        -- ... etc
+      },
+    })
+<
+
+==============================================================================
+9. SYMBOL TYPES                                                 *argus-symbols*
+
+Argus recognizes the following Go symbol types:
+
+    Symbol      Icon    Description ~
+    -----------------------------------------------------------------------
+    package     󰏗       Package declaration
+    function    󰊕       Function declaration
+    method      󰆧       Method declaration
+    struct      󰙅       Struct type
+    interface   󰜰       Interface type
+    type        󰊄       Type alias
+    const       󰏿       Constant declaration
+    var         󰀫       Variable declaration
+    field       󰜢       Struct field
+
+==============================================================================
+10. HIGHLIGHTS                                              *argus-highlights*
+
+Argus defines the following highlight groups that you can customize:
+
+    Highlight Group     Default Link    Description ~
+    -----------------------------------------------------------------------
+    ArgusPackage        Keyword         Package names
+    ArgusFunction       Function        Function names
+    ArgusMethod         Function        Method names
+    ArgusStruct         Type            Struct names
+    ArgusInterface      Type            Interface names
+    ArgusType           Type            Type alias names
+    ArgusConst          Constant        Constant names
+    ArgusVar            Identifier      Variable names
+    ArgusField          Identifier      Struct field names
+    ArgusIcon           Special         Symbol icons
+    ArgusLineNr         LineNr          Line numbers
+    ArgusFoldIcon       Comment         Fold indicators
+    ArgusReceiver       Comment         Method receivers
+    ArgusSignature      Comment         Type signatures
+
+Example customization:
+>lua
+    vim.api.nvim_set_hl(0, "ArgusFunction", { fg = "#7aa2f7", bold = true })
+<
+
+==============================================================================
+11. API                                                           *argus-api*
+
+The plugin exposes a Lua API for advanced usage:
+
+                                                              *argus.setup()*
+argus.setup({opts}) ~
+    Initialize the plugin with configuration options.
+
+                                                               *argus.open()*
+argus.open([bufnr]) ~
+    Open the outline for the given buffer (or current buffer).
+
+                                                              *argus.close()*
+argus.close() ~
+    Close the outline window.
+
+                                                             *argus.toggle()*
+argus.toggle() ~
+    Toggle the outline window.
+
+                                                            *argus.refresh()*
+argus.refresh() ~
+    Refresh the outline to reflect source changes.
+
+                                                            *argus.is_open()*
+argus.is_open() ~
+    Returns true if the outline window is open.
+
+Submodules: ~
+
+    `require("argus").window`     Window management
+    `require("argus").render`     Rendering logic
+    `require("argus").parser`     Treesitter parsing
+    `require("argus").actions`    User actions
+    `require("argus").filter`     Filter functionality
+    `require("argus").config`     Configuration
+
+Example: ~
+>lua
+    local argus = require("argus")
+
+    -- Open outline with a keymap
+    vim.keymap.set("n", "<leader>cs", argus.toggle, { desc = "Toggle Outline" })
+
+    -- Check if open before doing something
+    if argus.is_open() then
+      argus.refresh()
+    end
+<
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
