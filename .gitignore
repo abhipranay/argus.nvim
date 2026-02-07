@@ -1,0 +1,18 @@
+# Generated files
+doc/tags
+
+# Neovim
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Test artifacts
+.test/

@@ -1,29 +1,37 @@
 # argus.nvim
 
+[![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-green.svg?logo=neovim)](https://neovim.io)
+[![Lua](https://img.shields.io/badge/Lua-5.1-blue.svg?logo=lua)](https://www.lua.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Neovim plugin that displays a hierarchical outline of Go source code symbols with the ability to reorder symbols by moving them up/down in the outline window.
 
-## Features
+## ✨ Features
 
 - **Hierarchical Symbol Outline**: View structs, interfaces, functions, methods, constants, and variables in a tree structure
-- **Method Grouping**: Methods are automatically nested under their receiver types
+- **Two View Modes**: Switch between flat (file order) and hierarchy (grouped) views
 - **Symbol Reordering**: Move symbols up/down in the source code directly from the outline
+- **Method Grouping**: Methods automatically nested under their receiver types (in hierarchy view)
+- **Struct Fields**: View struct fields and interface methods as children
 - **Comment Preservation**: Doc comments move with their associated symbols
 - **Live Filtering**: Search/filter symbols interactively
 - **Cursor Sync**: Outline cursor follows your position in the source file
 - **Folding**: Collapse/expand symbol groups
+- **Multiple Icon Presets**: Choose from default, material, devicons, or minimal styles
 
-## Requirements
+## 📋 Requirements
 
 - Neovim >= 0.9.0
-- nvim-treesitter with Go parser installed
+- nvim-treesitter with Go parser installed (`TSInstall go`)
+- A [Nerd Font](https://www.nerdfonts.com/) (for icons)
 
-## Installation
+## 📦 Installation
 
 ### lazy.nvim
 
 ```lua
 {
-  "yourusername/argus.nvim",
+  "abhipranay/argus.nvim",
   ft = "go",
   opts = {},
   keys = {
@@ -36,7 +44,7 @@ A Neovim plugin that displays a hierarchical outline of Go source code symbols w
 
 ```lua
 use {
-  "yourusername/argus.nvim",
+  "abhipranay/argus.nvim",
   config = function()
     require("argus").setup()
   end,
@@ -44,7 +52,7 @@ use {
 }
 ```
 
-## Configuration
+## ⚙️ Configuration
 
 ```lua
 require("argus").setup({
@@ -54,23 +62,13 @@ require("argus").setup({
   auto_close = true,       -- close when source buffer closes
 
   -- Display
-  icons = {
-    package = "󰏗",
-    ["function"] = "󰊕",
-    method = "󰆧",
-    struct = "󰙅",
-    interface = "󰜰",
-    type = "󰊄",
-    const = "󰏿",
-    var = "󰀫",
-    collapsed = "",
-    expanded = "",
-  },
+  icons = require("argus.config").get_preset("default"), -- or "material", "devicons", "minimal"
   show_line_numbers = true,
 
   -- Behavior
   auto_preview = false,    -- preview symbol on cursor move
   follow_cursor = true,    -- sync outline cursor with source
+  view_mode = "flat",      -- "flat" (file order) | "hierarchy" (grouped)
 
   -- Keymaps (in outline window)
   keymaps = {
@@ -84,11 +82,29 @@ require("argus").setup({
     filter = "/",
     clear_filter = "<Esc>",
     refresh = "R",
+    toggle_view = "v",
+    help = "?",
   },
 })
 ```
 
-## Usage
+### Icon Presets
+
+| Preset | Description |
+|--------|-------------|
+| `default` | Clean Nerd Font icons (recommended) |
+| `material` | Material Design style |
+| `devicons` | Devicons style |
+| `minimal` | ASCII-compatible (no special font needed) |
+
+```lua
+-- Use a different preset
+opts = {
+  icons = require("argus.config").get_preset("material"),
+}
+```
+
+## 🚀 Usage
 
 ### Commands
 
@@ -113,49 +129,56 @@ require("argus").setup({
 | `/` | Open filter prompt |
 | `<Esc>` | Clear filter |
 | `R` | Refresh outline |
+| `v` | Toggle view mode (flat/hierarchy) |
+| `?` | Show help |
 
-### Suggested Global Keymap
+## 📖 Outline Display
 
-```lua
-vim.keymap.set("n", "<leader>cs", "<cmd>ArgusToggle<cr>", { desc = "Toggle Code Outline" })
-```
-
-## Outline Display
-
-Symbols are displayed hierarchically with methods grouped under their receiver types:
+### Flat View (File Order)
+Shows symbols in their actual order in the source file - useful for reorganizing code:
 
 ```
-󰏗 main
-󰙅 Config
-   󰆧 NewConfig() *Config
-   󰆧 (c *Config) Validate() error
-   󰆧 (c *Config) Save() error
-󰙅 Server
-   󰆧 NewServer(cfg *Config) *Server
-   󰆧 (s *Server) Start() error
-   󰆧 (s *Server) Stop() error
-󰜰 Handler
-󰊕 main()
-󰊕 init()
-󰏿 DefaultTimeout
-󰏿 MaxConnections
-󰀫 logger
+pkg  main
+fn   NewConfig()
+st   Config
+     ├─ Host string
+     └─ Port int
+fn   helper()
+mth  (c *Config) Validate()
+mth  (c *Config) Save()
+cst  MaxRetries
 ```
 
-## Symbol Types
+### Hierarchy View (Grouped)
+Groups methods under their receiver types:
 
-| Symbol | Icon | Description |
-|--------|------|-------------|
-| Package | 󰏗 | Package declaration |
-| Function | 󰊕 | Function declaration |
-| Method | 󰆧 | Method declaration |
-| Struct | 󰙅 | Struct type |
-| Interface | 󰜰 | Interface type |
-| Type | 󰊄 | Type alias |
-| Const | 󰏿 | Constant |
-| Var | 󰀫 | Variable |
+```
+pkg  main
+st   Config
+     ├─ Host string
+     ├─ Port int
+     ├─ mth (c *Config) Validate()
+     └─ mth (c *Config) Save()
+fn   NewConfig()
+fn   helper()
+cst  MaxRetries
+```
 
-## How Symbol Moving Works
+## 📝 Symbol Types
+
+| Type | Abbreviation | Description |
+|------|--------------|-------------|
+| Package | `pkg` | Package declaration |
+| Function | `fn` | Function declaration |
+| Method | `mth` | Method declaration |
+| Struct | `st` | Struct type |
+| Interface | `if` | Interface type |
+| Type | `typ` | Type alias |
+| Const | `cst` | Constant |
+| Var | `var` | Variable |
+| Field | `fld` | Struct field |
+
+## 🔄 How Symbol Moving Works
 
 When you press `K` or `J` to move a symbol:
 
@@ -168,6 +191,27 @@ When you press `K` or `J` to move a symbol:
 
 This allows you to quickly reorganize your Go code without manual cut/paste operations.
 
-## License
+## 🧪 Running Tests
 
-MIT
+```bash
+make test
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) for the parsing infrastructure
+- Inspired by [symbols-outline.nvim](https://github.com/simrat39/symbols-outline.nvim) and [aerial.nvim](https://github.com/stevearc/aerial.nvim)
