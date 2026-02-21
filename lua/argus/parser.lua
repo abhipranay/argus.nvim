@@ -355,6 +355,29 @@ local function parse_const_declaration(node, bufnr)
   return result
 end
 
+---Parse a single var_spec node
+---@param spec userdata
+---@param bufnr number
+---@param cfg table
+---@param comment_start number|nil
+---@return Symbol|nil, nil
+local function parse_var_spec(spec, bufnr, cfg, comment_start)
+  local name_node = spec:field("name")[1]
+  if name_node then
+    local name = vim.treesitter.get_node_text(name_node, bufnr)
+    local spec_start, _, spec_end, _ = spec:range()
+    return symbols.new({
+      name = name,
+      kind = "var",
+      icon = cfg.icons.var,
+      start_line = (comment_start or spec_start) + 1,
+      end_line = spec_end + 1,
+      code_start_line = spec_start + 1,
+    })
+  end
+  return nil
+end
+
 ---Parse var declaration
 ---@param node userdata
 ---@param bufnr number
@@ -367,19 +390,22 @@ local function parse_var_declaration(node, bufnr)
 
   for child in node:iter_children() do
     if child:type() == "var_spec" then
-      local name_node = child:field("name")[1]
-      if name_node then
-        local name = vim.treesitter.get_node_text(name_node, bufnr)
-        local spec_start, _, spec_end, _ = child:range()
-        table.insert(result, symbols.new({
-          name = name,
-          kind = "var",
-          icon = cfg.icons.var,
-          start_line = (comment_start or spec_start) + 1,
-          end_line = spec_end + 1,
-          code_start_line = spec_start + 1,
-        }))
+      -- Direct var_spec (single var declaration)
+      local sym = parse_var_spec(child, bufnr, cfg, comment_start)
+      if sym then
+        table.insert(result, sym)
         comment_start = nil
+      end
+    elseif child:type() == "var_spec_list" then
+      -- Grouped var declaration
+      for spec in child:iter_children() do
+        if spec:type() == "var_spec" then
+          local sym = parse_var_spec(spec, bufnr, cfg, comment_start)
+          if sym then
+            table.insert(result, sym)
+            comment_start = nil
+          end
+        end
       end
     end
   end
