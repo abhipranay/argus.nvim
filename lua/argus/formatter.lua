@@ -120,7 +120,7 @@ end
 ---@param bufnr number
 ---@param symbol table
 ---@return boolean
-local function is_in_group(bufnr, symbol)
+function M.is_in_group(bufnr, symbol)
   if symbol.kind ~= "const" and symbol.kind ~= "var"
       and symbol.kind ~= "struct" and symbol.kind ~= "interface" and symbol.kind ~= "type" then
     return false
@@ -171,11 +171,27 @@ local function is_in_group(bufnr, symbol)
   return false
 end
 
+---Check if a symbol is inside group SYNTAX (parentheses), even if singleton
+---This is used for singleton detection/conversion
+---@param bufnr number
+---@param symbol table
+---@return boolean
+function M.is_in_group_syntax(bufnr, symbol)
+  if symbol.kind ~= "const" and symbol.kind ~= "var"
+      and symbol.kind ~= "struct" and symbol.kind ~= "interface" and symbol.kind ~= "type" then
+    return false
+  end
+
+  -- Check if there's a group boundary around this symbol
+  local start_line, end_line = M.find_group_boundaries(bufnr, symbol)
+  return start_line ~= nil and end_line ~= nil
+end
+
 ---Find group boundaries for a symbol
 ---@param bufnr number
 ---@param symbol table
 ---@return number|nil start_line (0-indexed), number|nil end_line (0-indexed)
-local function find_group_boundaries(bufnr, symbol)
+function M.find_group_boundaries(bufnr, symbol)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local code_line = symbol.code_start_line - 1 -- 0-indexed
 
@@ -214,6 +230,37 @@ local function find_group_boundaries(bufnr, symbol)
   end
 
   return start_line, end_line
+end
+
+---Get the keyword (const, var, type) for a grouped symbol
+---@param bufnr number
+---@param symbol table
+---@return string|nil "const", "var", or "type"
+function M.get_group_keyword(bufnr, symbol)
+  if not M.is_in_group(bufnr, symbol) then
+    return nil
+  end
+
+  local start_line, _ = M.find_group_boundaries(bufnr, symbol)
+  if not start_line then
+    return nil
+  end
+
+  local lines = vim.api.nvim_buf_get_lines(bufnr, start_line, start_line + 1, false)
+  if #lines == 0 then
+    return nil
+  end
+
+  local line = lines[1]
+  if line:match("^%s*const%s*%(") then
+    return "const"
+  elseif line:match("^%s*var%s*%(") then
+    return "var"
+  elseif line:match("^%s*type%s*%(") then
+    return "type"
+  end
+
+  return nil
 end
 
 ---Parse and sort items within a group block
@@ -433,7 +480,7 @@ function M.format_buffer(bufnr)
   for _, symbol in ipairs(symbols) do
     if symbol.kind == "struct" or symbol.kind == "interface" or symbol.kind == "type" then
       type_names[symbol.name] = true
-      if is_in_group(bufnr, symbol) then
+      if M.is_in_group(bufnr, symbol) then
         grouped_types[symbol.name] = true
       else
         standalone_types[symbol.name] = true
@@ -448,8 +495,8 @@ function M.format_buffer(bufnr)
   for _, symbol in ipairs(symbols) do
     if (symbol.kind == "const" or symbol.kind == "var" or symbol.kind == "struct"
         or symbol.kind == "interface" or symbol.kind == "type") then
-      if is_in_group(bufnr, symbol) then
-        local start_line, end_line = find_group_boundaries(bufnr, symbol)
+      if M.is_in_group(bufnr, symbol) then
+        local start_line, end_line = M.find_group_boundaries(bufnr, symbol)
         if start_line and end_line and not processed_groups[start_line] then
           processed_groups[start_line] = true
           group_content[start_line] = {
@@ -506,7 +553,7 @@ function M.format_buffer(bufnr)
       end
       -- Add standalone consts
       for _, symbol in ipairs(categories.consts) do
-        if not is_in_group(bufnr, symbol) then
+        if not M.is_in_group(bufnr, symbol) then
           if #section_lines > 0 then
             table.insert(section_lines, "")
           end
@@ -531,7 +578,7 @@ function M.format_buffer(bufnr)
       end
       -- Add standalone vars
       for _, symbol in ipairs(categories.vars) do
-        if not is_in_group(bufnr, symbol) then
+        if not M.is_in_group(bufnr, symbol) then
           if #section_lines > 0 then
             table.insert(section_lines, "")
           end

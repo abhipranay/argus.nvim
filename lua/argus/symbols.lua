@@ -144,4 +144,47 @@ function M.line_count(symbol)
   return symbol.end_line - symbol.start_line + 1
 end
 
+---Get siblings within the same group boundaries
+---Only returns siblings that are in the same grouped declaration (var/const/type block)
+---@param symbol Symbol
+---@param symbols Symbol[] Top-level symbols
+---@param bufnr number Buffer number
+---@return Symbol[] siblings within group, number index of symbol in group siblings
+function M.get_group_siblings(symbol, symbols, bufnr)
+  local formatter = require("argus.formatter")
+
+  -- If not in a group, return empty - caller should use get_siblings instead
+  if not formatter.is_in_group(bufnr, symbol) then
+    return {}, 0
+  end
+
+  local start_line, end_line = formatter.find_group_boundaries(bufnr, symbol)
+  if not start_line or not end_line then
+    return {}, 0
+  end
+
+  -- Convert to 1-indexed for comparison with symbol lines
+  local group_start = start_line + 1
+  local group_end = end_line + 1
+
+  -- Get regular siblings first
+  local siblings = M.get_siblings(symbol, symbols)
+
+  -- Filter to only include siblings within this group's boundaries
+  local group_siblings = {}
+  local index = 0
+
+  for _, sibling in ipairs(siblings) do
+    -- Check if sibling's code_start_line is within group boundaries
+    if sibling.code_start_line >= group_start and sibling.code_start_line <= group_end then
+      table.insert(group_siblings, sibling)
+      if sibling == symbol then
+        index = #group_siblings
+      end
+    end
+  end
+
+  return group_siblings, index
+end
+
 return M
