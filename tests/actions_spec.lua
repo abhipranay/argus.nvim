@@ -389,6 +389,51 @@ var (
 
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
+
+    it("should preserve comments when inserting standalone with comment into group", function()
+      -- Setup: standalone 'a' with comment, followed by 2-item group
+      local buf = create_go_buffer([[
+package main
+
+// Comment for a
+var a = 1
+
+var (
+	b = 2
+	c = 3
+)
+]])
+      local parser = require("argus.parser")
+      local actions = require("argus.actions")
+
+      -- Parse symbols
+      local symbols_list = parser.parse_buffer(buf, "flat")
+
+      local sym_a, sym_b
+      for _, s in ipairs(symbols_list) do
+        if s.name == "a" and s.kind == "var" then sym_a = s end
+        if s.name == "b" and s.kind == "var" then sym_b = s end
+      end
+
+      assert.is_not_nil(sym_a)
+      assert.is_not_nil(sym_b)
+
+      -- Call _insert_into_group to insert 'a' into the group at 'b' position
+      actions._insert_into_group(buf, sym_a, sym_b, "down")
+
+      -- Check the result - comment should be preserved
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      local content = table.concat(lines, "\n")
+
+      -- Comment should be in the group now
+      assert.is_not_nil(content:match("// Comment for a"), "Comment should be preserved")
+      -- 'a' should be in the group
+      assert.is_not_nil(content:match("a = 1"), "Symbol 'a' should exist in group form")
+      -- Standalone 'var a' should be gone
+      assert.is_nil(content:match("var a = 1"), "Standalone 'var a = 1' should be removed")
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
   end)
 end)
 

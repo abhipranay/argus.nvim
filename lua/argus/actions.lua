@@ -206,18 +206,45 @@ local function extract_from_group(bufnr, symbol, direction)
     return false
   end
 
-  -- Get the symbol's lines within the group (use code_start_line, not start_line)
+  -- Get the symbol's lines within the group
+  -- Include any comments that belong to this symbol (if they're inside the group)
   local sym_start_0 = symbol.code_start_line - 1
   local sym_end_0 = symbol.end_line - 1
+  local comment_start_0 = symbol.start_line - 1
 
-  -- Extract symbol content
+  -- Only include comments if they're inside the group (after group_start)
+  local include_comments = comment_start_0 > group_start and comment_start_0 < sym_start_0
+  if include_comments then
+    sym_start_0 = comment_start_0
+  end
+
+  -- Extract symbol content (including comments if applicable)
   local sym_lines = vim.api.nvim_buf_get_lines(bufnr, sym_start_0, sym_end_0 + 1, false)
 
   -- Build standalone declaration
   local standalone_lines = {}
-  table.insert(standalone_lines, keyword .. " " .. vim.trim(sym_lines[1]))
-  for idx = 2, #sym_lines do
-    table.insert(standalone_lines, sym_lines[idx])
+
+  if include_comments then
+    -- Add comments first (without indentation change)
+    local code_offset = symbol.code_start_line - symbol.start_line
+    for idx = 1, code_offset do
+      -- Remove group indentation from comments
+      local line = sym_lines[idx]
+      local trimmed = vim.trim(line)
+      table.insert(standalone_lines, trimmed)
+    end
+    -- Add the declaration with keyword
+    table.insert(standalone_lines, keyword .. " " .. vim.trim(sym_lines[code_offset + 1]))
+    -- Add remaining lines
+    for idx = code_offset + 2, #sym_lines do
+      table.insert(standalone_lines, sym_lines[idx])
+    end
+  else
+    -- No comments - just the declaration
+    table.insert(standalone_lines, keyword .. " " .. vim.trim(sym_lines[1]))
+    for idx = 2, #sym_lines do
+      table.insert(standalone_lines, sym_lines[idx])
+    end
   end
 
   -- Get group siblings to check if this will leave a singleton
@@ -484,10 +511,21 @@ function M._insert_into_group(source_buf, symbol, target, direction)
     indent = target_lines[1]:match("^(%s*)") or ""
   end
 
-  -- Build the group item content
-  -- Note: We don't preserve comments above standalone symbols when inserting into group
-  -- because group items typically don't have individual comments above them
-  local group_content = { indent .. stripped_code }
+  -- Build the group item content (preserving any comments above the declaration)
+  local group_content = {}
+
+  -- Add any comment lines first (with proper indentation)
+  for idx = 1, code_line_idx - 1 do
+    local comment_line = vim.trim(sym_lines[idx])
+    if comment_line ~= "" then
+      table.insert(group_content, indent .. comment_line)
+    end
+  end
+
+  -- Add the declaration line (stripped of keyword, with indent)
+  table.insert(group_content, indent .. stripped_code)
+
+  -- Add remaining lines (rest of multi-line declaration)
   for idx = code_line_idx + 1, #sym_lines do
     table.insert(group_content, sym_lines[idx])
   end
