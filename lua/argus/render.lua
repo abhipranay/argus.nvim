@@ -51,16 +51,20 @@ local function render_symbol_line(symbol, indent, cfg)
 
   -- Fold indicator for symbols with children
   if #symbol.children > 0 then
-    local fold_icon = symbol.collapsed and cfg.icons.collapsed or cfg.icons.expanded
+    local fold_kind = symbol.collapsed and "collapsed" or "expanded"
+    local fold_icon, fold_hl = config.get_icon_with_hl(fold_kind)
+    -- get_icon_with_hl already handles fallback for collapsed/expanded
     table.insert(parts, fold_icon .. " ")
-    table.insert(hl_ranges, { group = "ArgusFoldIcon", col = col, length = #fold_icon })
+    table.insert(hl_ranges, { group = fold_hl or "ArgusFoldIcon", col = col, length = #fold_icon })
     col = col + #fold_icon + 1
   end
 
-  -- Icon
-  table.insert(parts, symbol.icon .. " ")
-  table.insert(hl_ranges, { group = "ArgusIcon", col = col, length = #symbol.icon })
-  col = col + #symbol.icon + 1
+  -- Icon (with mini.icons support)
+  local icon, icon_hl = config.get_icon_with_hl(symbol.kind)
+  -- get_icon_with_hl already handles fallback
+  table.insert(parts, icon .. " ")
+  table.insert(hl_ranges, { group = icon_hl or "ArgusIcon", col = col, length = #icon })
+  col = col + #icon + 1
 
   -- Symbol name (with special handling for fields to show type separately)
   local name_hl = highlights.get_hl_group(symbol.kind)

@@ -99,4 +99,70 @@ describe("config", function()
       end
     end)
   end)
+
+  describe("mini.icons integration", function()
+    it("should allow setting icons to 'mini' string", function()
+      config.setup({ icons = "mini" })
+      local cfg = config.get()
+      assert.equals(config.MINI_ICONS, cfg.icons)
+    end)
+
+    it("should provide is_mini_icons_available function", function()
+      assert.is_function(config.is_mini_icons_available)
+    end)
+
+    it("should provide uses_mini_icons function", function()
+      assert.is_function(config.uses_mini_icons)
+      config.setup({ icons = "mini" })
+      assert.is_true(config.uses_mini_icons())
+      config.setup({ icons = "default" })
+      assert.is_false(config.uses_mini_icons())
+    end)
+
+    it("should provide get_mini_icon function", function()
+      assert.is_function(config.get_mini_icon)
+    end)
+
+    it("should return nil from get_mini_icon when mini.icons not available", function()
+      -- Force mini.icons to be unavailable
+      package.loaded["mini.icons"] = nil
+      local icon, hl = config.get_mini_icon("function")
+      if not config.is_mini_icons_available() then
+        assert.is_nil(icon)
+      end
+    end)
+
+    it("should map argus kinds to LSP kinds correctly", function()
+      -- Test the mapping exists
+      assert.is_not_nil(config.lsp_kind_map)
+      assert.equals("Function", config.lsp_kind_map["function"])
+      assert.equals("Method", config.lsp_kind_map["method"])
+      assert.equals("Struct", config.lsp_kind_map["struct"])
+      assert.equals("Interface", config.lsp_kind_map["interface"])
+      assert.equals("Constant", config.lsp_kind_map["const"])
+      assert.equals("Variable", config.lsp_kind_map["var"])
+      assert.equals("Field", config.lsp_kind_map["field"])
+      assert.equals("Module", config.lsp_kind_map["package"])
+    end)
+
+    it("should get_preset return MINI_ICONS for 'mini'", function()
+      local preset = config.get_preset("mini")
+      assert.equals(config.MINI_ICONS, preset)
+    end)
+
+    it("should fall back to default icons for collapsed/expanded with mini", function()
+      config.setup({ icons = "mini" })
+      -- collapsed/expanded don't have LSP equivalents, should fall back
+      local collapsed_icon = config.get_icon("collapsed")
+      local expanded_icon = config.get_icon("expanded")
+      assert.equals(config.icon_presets.default.collapsed, collapsed_icon)
+      assert.equals(config.icon_presets.default.expanded, expanded_icon)
+    end)
+
+    it("should allow icons as preset name string", function()
+      config.setup({ icons = "material" })
+      local cfg = config.get()
+      assert.same(config.icon_presets.material, cfg.icons)
+    end)
+  end)
 end)

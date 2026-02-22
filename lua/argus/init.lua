@@ -126,6 +126,10 @@ function M._setup_commands()
   vim.api.nvim_create_user_command("ArgusRefresh", function()
     M.refresh()
   end, { desc = "Refresh Argus outline" })
+
+  vim.api.nvim_create_user_command("ArgusFormatFile", function()
+    require("argus.formatter").format_buffer()
+  end, { desc = "Format Go file according to template" })
 end
 
 ---Setup autocmds for plugin events
@@ -191,5 +195,6 @@ M.parser = parser
 M.actions = actions
 M.filter = filter
 M.config = config
+M.formatter = require("argus.formatter")
 
 return M

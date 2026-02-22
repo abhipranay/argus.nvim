@@ -305,17 +305,21 @@ end
 local function parse_type_declaration(node, bufnr)
   local result = {}
   local start_row, _, _, _ = node:range()
-  local comment_start = get_preceding_comment_start(bufnr, start_row)
-  local first = true
+  local group_comment_start = get_preceding_comment_start(bufnr, start_row)
 
   for child in node:iter_children() do
     if child:type() == "type_spec" then
-      -- Only apply comment to first type in group
-      local symbol = parse_type_spec(child, bufnr, first and comment_start or nil)
+      -- Look for comment above this specific type spec
+      local spec_start, _, _, _ = child:range()
+      local spec_comment = get_preceding_comment_start(bufnr, spec_start)
+      -- Use spec's own comment if found, otherwise use group's comment for first item
+      local comment_start = spec_comment or group_comment_start
+      local symbol = parse_type_spec(child, bufnr, comment_start)
       if symbol then
         table.insert(result, symbol)
       end
-      first = false
+      -- Only first item can use group's comment
+      group_comment_start = nil
     end
   end
 
@@ -330,7 +334,7 @@ local function parse_const_declaration(node, bufnr)
   local result = {}
   local cfg = config.get()
   local start_row, _, end_row, _ = node:range()
-  local comment_start = get_preceding_comment_start(bufnr, start_row)
+  local group_comment_start = get_preceding_comment_start(bufnr, start_row)
 
   for child in node:iter_children() do
     if child:type() == "const_spec" then
@@ -338,6 +342,10 @@ local function parse_const_declaration(node, bufnr)
       if name_node then
         local name = vim.treesitter.get_node_text(name_node, bufnr)
         local spec_start, _, spec_end, _ = child:range()
+        -- Look for comment above this specific spec
+        local spec_comment = get_preceding_comment_start(bufnr, spec_start)
+        -- Use spec's own comment if found, otherwise use group's comment for first item
+        local comment_start = spec_comment or group_comment_start
         table.insert(result, symbols.new({
           name = name,
           kind = "const",
@@ -346,13 +354,36 @@ local function parse_const_declaration(node, bufnr)
           end_line = spec_end + 1,
           code_start_line = spec_start + 1,
         }))
-        -- Only use comment_start for the first const in a group
-        comment_start = nil
+        -- Only first item can use group's comment
+        group_comment_start = nil
       end
     end
   end
 
   return result
+end
+
+---Parse a single var_spec node
+---@param spec userdata
+---@param bufnr number
+---@param cfg table
+---@param comment_start number|nil
+---@return Symbol|nil, nil
+local function parse_var_spec(spec, bufnr, cfg, comment_start)
+  local name_node = spec:field("name")[1]
+  if name_node then
+    local name = vim.treesitter.get_node_text(name_node, bufnr)
+    local spec_start, _, spec_end, _ = spec:range()
+    return symbols.new({
+      name = name,
+      kind = "var",
+      icon = cfg.icons.var,
+      start_line = (comment_start or spec_start) + 1,
+      end_line = spec_end + 1,
+      code_start_line = spec_start + 1,
+    })
+  end
+  return nil
 end
 
 ---Parse var declaration
@@ -367,19 +398,26 @@ local function parse_var_declaration(node, bufnr)
 
   for child in node:iter_children() do
     if child:type() == "var_spec" then
-      local name_node = child:field("name")[1]
-      if name_node then
-        local name = vim.treesitter.get_node_text(name_node, bufnr)
-        local spec_start, _, spec_end, _ = child:range()
-        table.insert(result, symbols.new({
-          name = name,
-          kind = "var",
-          icon = cfg.icons.var,
-          start_line = (comment_start or spec_start) + 1,
-          end_line = spec_end + 1,
-          code_start_line = spec_start + 1,
-        }))
+      -- Direct var_spec (single var declaration)
+      local sym = parse_var_spec(child, bufnr, cfg, comment_start)
+      if sym then
+        table.insert(result, sym)
         comment_start = nil
+      end
+    elseif child:type() == "var_spec_list" then
+      -- Grouped var declaration - check for comments above each spec
+      for spec in child:iter_children() do
+        if spec:type() == "var_spec" then
+          -- Look for comment above this specific spec
+          local spec_start, _, _, _ = spec:range()
+          local spec_comment = get_preceding_comment_start(bufnr, spec_start)
+          -- Use spec's own comment if found, otherwise use group's comment for first item
+          local sym = parse_var_spec(spec, bufnr, cfg, spec_comment or comment_start)
+          if sym then
+            table.insert(result, sym)
+            comment_start = nil -- Only first item can use group's comment
+          end
+        end
       end
     end
   end
